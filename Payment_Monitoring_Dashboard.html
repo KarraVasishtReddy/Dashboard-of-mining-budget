@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>R&R Payment Monitoring Dashboard - 2 Month Automation</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container { max-width: 1400px; margin: 0 auto; }
+        
+        .header {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        .header h1 {
+            color: #1f4e78;
+            font-size: 28px;
+            margin-bottom: 0.5rem;
+        }
+        
+        .header p {
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .status-bar {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+            margin-top: 1rem;
+        }
+        
+        .status-card {
+            background: #f8f9ff;
+            padding: 1rem;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .status-label {
+            font-size: 12px;
+            color: #666;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .status-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: #1f4e78;
+            margin-top: 0.5rem;
+        }
+        
+        .tabs {
+            display: flex;
+            gap: 0;
+            margin-bottom: 2rem;
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .tab-btn {
+            flex: 1;
+            padding: 1.5rem;
+            background: white;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            color: #666;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+        
+        .tab-btn.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+            background: #f8f9ff;
+        }
+        
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.3s;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .card h2 {
+            color: #1f4e78;
+            margin-bottom: 1.5rem;
+            font-size: 18px;
+        }
+        
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .metric-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .metric-label {
+            font-size: 12px;
+            opacity: 0.9;
+            margin-bottom: 0.5rem;
+        }
+        
+        .metric-value {
+            font-size: 24px;
+            font-weight: 700;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        
+        th {
+            background: #f8f9ff;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #333;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        tr:hover { background: #f8f9ff; }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        
+        .status-success { background: #c6efce; color: #0f6e56; }
+        .status-warning { background: #ffeb9c; color: #8b6914; }
+        .status-pending { background: #b4d7f1; color: #0d3478; }
+        
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin: 1.5rem 0;
+        }
+        
+        .input-group {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 1.5rem;
+        }
+        
+        .input-group input, .input-group select {
+            flex: 1;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        
+        .input-group button {
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.3s;
+        }
+        
+        .input-group button:hover { background: #764ba2; }
+        
+        .action-list {
+            list-style: none;
+        }
+        
+        .action-list li {
+            background: #f8f9ff;
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            border-left: 4px solid #667eea;
+            border-radius: 4px;
+        }
+        
+        .action-list strong {
+            color: #1f4e78;
+        }
+        
+        .progress-bar {
+            background: #e0e0e0;
+            height: 20px;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 0.5rem 0;
+        }
+        
+        .progress-fill {
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        @media (max-width: 768px) {
+            .grid-2 { grid-template-columns: 1fr; }
+            .tabs { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>R&R Payment Monitoring Dashboard</h1>
+            <p>Real-time tracking for 2-month automated payment disbursement (May-June 2026)</p>
+            <div class="status-bar">
+                <div class="status-card">
+                    <div class="status-label">Total Beneficiaries</div>
+                    <div class="status-value">315</div>
+                </div>
+                <div class="status-card">
+                    <div class="status-label">Paid</div>
+                    <div class="status-value" id="paidCount">52</div>
+                </div>
+                <div class="status-card">
+                    <div class="status-label">Pending</div>
+                    <div class="status-value" id="pendingCount">263</div>
+                </div>
+                <div class="status-card">
+                    <div class="status-label">Total Disbursed</div>
+                    <div class="status-value" id="totalDisbursed">₹52.35 Cr</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('overview')">Overview</button>
+            <button class="tab-btn" onclick="switchTab('weekly')">Weekly Progress</button>
+            <button class="tab-btn" onclick="switchTab('tracking')">Payment Tracking</button>
+            <button class="tab-btn" onclick="switchTab('automation')">Automation Schedule</button>
+            <button class="tab-btn" onclick="switchTab('actions')">Critical Actions</button>
+        </div>
+
+        <!-- Overview Tab -->
+        <div id="overview" class="tab-content active">
+            <div class="card">
+                <h2>Dashboard Overview</h2>
+                <div class="grid-2">
+                    <div class="metric-box">
+                        <div class="metric-label">Progress to Target</div>
+                        <div class="metric-value">16.5%</div>
+                        <div style="font-size: 12px; margin-top: 0.5rem;">52/315 beneficiaries</div>
+                    </div>
+                    <div class="metric-box">
+                        <div class="metric-label">Disbursal Amount</div>
+                        <div class="metric-value">₹52.35 Cr</div>
+                        <div style="font-size: 12px; margin-top: 0.5rem;">of ₹157.73 Cr total</div>
+                    </div>
+                    <div class="metric-box">
+                        <div class="metric-label">Average Processing</div>
+                        <div class="metric-value">4.2 days</div>
+                        <div style="font-size: 12px; margin-top: 0.5rem;">per beneficiary</div>
+                    </div>
+                    <div class="metric-box">
+                        <div class="metric-label">Document Ready</div>
+                        <div class="metric-value">94%</div>
+                        <div style="font-size: 12px; margin-top: 0.5rem;">285 files verified</div>
+                    </div>
+                </div>
+
+                <h2 style="margin-top: 2rem;">Overall Progress</h2>
+                <div class="progress-bar" style="height: 30px;">
+                    <div class="progress-fill" style="width: 16.5%; font-size: 14px;">16.5%</div>
+                </div>
+
+                <div class="chart-container">
+                    <canvas id="overviewChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Weekly Progress Tab -->
+        <div id="weekly" class="tab-content">
+            <div class="card">
+                <h2>Weekly Payment Schedule</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Week</th>
+                            <th>Date Range</th>
+                            <th>Target</th>
+                            <th>Actual</th>
+                            <th>Progress</th>
+                            <th>Amount (₹ Cr)</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Week 1</td>
+                            <td>1-7 May</td>
+                            <td>20</td>
+                            <td>18</td>
+                            <td><div class="progress-bar"><div class="progress-fill" style="width: 90%;">90%</div></div></td>
+                            <td>10.5</td>
+                            <td><span class="status-badge status-success">On Track</span></td>
+                        </tr>
+                        <tr>
+                            <td>Week 2</td>
+                            <td>8-14 May</td>
+                            <td>20</td>
+                            <td>15</td>
+                            <td><div class="progress-bar"><div class="progress-fill" style="width: 75%;">75%</div></div></td>
+                            <td>9.8</td>
+                            <td><span class="status-badge status-success">On Track</span></td>
+                        </tr>
+                        <tr>
+                            <td>Week 3</td>
+                            <td>15-21 May</td>
+                            <td>20</td>
+                            <td>12</td>
+                            <td><div class="progress-bar"><div class="progress-fill" style="width: 60%;">60%</div></div></td>
+                            <td>8.2</td>
+                            <td><span class="status-badge status-warning">At Risk</span></td>
+                        </tr>
+                        <tr>
+                            <td>Week 4</td>
+                            <td>22-28 May</td>
+                            <td>15</td>
+                            <td>7</td>
+                            <td><div class="progress-bar"><div class="progress-fill" style="width: 47%;">47%</div></div></td>
+                            <td>5.5</td>
+                            <td><span class="status-badge status-warning">At Risk</span></td>
+                        </tr>
+                        <tr>
+                            <td>Week 5-8</td>
+                            <td>1-30 Jun</td>
+                            <td>80</td>
+                            <td>0</td>
+                            <td><div class="progress-bar"><div class="progress-fill" style="width: 0%;">0%</div></div></td>
+                            <td>0</td>
+                            <td><span class="status-badge status-pending">Scheduled</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+                <div class="chart-container" style="margin-top: 2rem;">
+                    <canvas id="weeklyChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Payment Tracking Tab -->
+        <div id="tracking" class="tab-content">
+            <div class="card">
+                <h2>Real-time Payment Tracker</h2>
+                <div class="input-group">
+                    <input type="text" id="searchHouse" placeholder="Search by house number or beneficiary name...">
+                    <button onclick="searchPayment()">Search</button>
+                    <button onclick="clearSearch()">Clear</button>
+                </div>
+                
+                <table id="paymentTable">
+                    <thead>
+                        <tr>
+                            <th>House #</th>
+                            <th>Beneficiary</th>
+                            <th>Total Amount</th>
+                            <th>Cheque 1</th>
+                            <th>Cheque 2</th>
+                            <th>Paid</th>
+                            <th>Status</th>
+                            <th>Update Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>210</td>
+                            <td>Sita Jagan Darve</td>
+                            <td>₹33.06 L</td>
+                            <td>Issued</td>
+                            <td>Issued</td>
+                            <td>₹33.06 L</td>
+                            <td><span class="status-badge status-success">Paid</span></td>
+                            <td>30-Apr-26</td>
+                        </tr>
+                        <tr>
+                            <td>186</td>
+                            <td>Pandurang Narayan Matte</td>
+                            <td>₹49.15 L</td>
+                            <td>Issued</td>
+                            <td>Issued</td>
+                            <td>₹49.15 L</td>
+                            <td><span class="status-badge status-success">Paid</span></td>
+                            <td>01-May-26</td>
+                        </tr>
+                        <tr>
+                            <td>172</td>
+                            <td>Nathuji Kalyan Matte</td>
+                            <td>₹52.49 L</td>
+                            <td>Issued</td>
+                            <td>Pending</td>
+                            <td>₹38.49 L</td>
+                            <td><span class="status-badge status-warning">Partial</span></td>
+                            <td>02-May-26</td>
+                        </tr>
+                        <tr>
+                            <td>221</td>
+                            <td>Rahul Ramaji Deharkar</td>
+                            <td>₹32.99 L</td>
+                            <td>Issued</td>
+                            <td>Issued</td>
+                            <td>₹32.99 L</td>
+                            <td><span class="status-badge status-success">Paid</span></td>
+                            <td>02-May-26</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Automation Schedule Tab -->
+        <div id="automation" class="tab-content">
+            <div class="card">
+                <h2>2-Month Automation Timeline</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Week</th>
+                            <th>Date</th>
+                            <th>Automation Task</th>
+                            <th>Expected Output</th>
+                            <th>Status</th>
+                            <th>Checklist</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Week 1</td>
+                            <td>1-7 May</td>
+                            <td>Document Verification & Cheque Generation</td>
+                            <td>52 cheques ready</td>
+                            <td><span class="status-badge status-success">In Progress</span></td>
+                            <td>✓ Docs verified | ⏳ Cheques printed</td>
+                        </tr>
+                        <tr>
+                            <td>Week 2</td>
+                            <td>8-14 May</td>
+                            <td>Cheque Distribution & Delivery Tracking</td>
+                            <td>Delivery confirmation</td>
+                            <td><span class="status-badge status-pending">Scheduled</span></td>
+                            <td>[ ] Distributed | [ ] Confirmed</td>
+                        </tr>
+                        <tr>
+                            <td>Week 3-4</td>
+                            <td>15-28 May</td>
+                            <td>Follow-up on Pending Cases</td>
+                            <td>Status report</td>
+                            <td><span class="status-badge status-pending">Scheduled</span></td>
+                            <td>[ ] Issues resolved</td>
+                        </tr>
+                        <tr>
+                            <td>Week 5-8</td>
+                            <td>1-30 Jun</td>
+                            <td>Phase 2: Process 150+ Beneficiaries</td>
+                            <td>150 cheques & reports</td>
+                            <td><span class="status-badge status-pending">Scheduled</span></td>
+                            <td>[ ] Phase 2 complete</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Critical Actions Tab -->
+        <div id="actions" class="tab-content">
+            <div class="card">
+                <h2>Critical Actions & Blockers</h2>
+                <ul class="action-list">
+                    <li><strong>🔴 HIGH PRIORITY:</strong> Missing Land Documents (12 cases)
+                        <div style="font-size: 12px; color: #666; margin-top: 0.5rem;">
+                            Action: Follow-up with beneficiaries | Owner: Verification Team | Due: 03-May-26
+                        </div>
+                    </li>
+                    <li><strong>🔴 HIGH PRIORITY:</strong> Bank Account Issues (5 cases)
+                        <div style="font-size: 12px; color: #666; margin-top: 0.5rem;">
+                            Action: Collect updated bank details | Owner: Finance | Due: 04-May-26
+                        </div>
+                    </li>
+                    <li><strong>🟡 MEDIUM:</strong> Pending Identity Verification (8 cases)
+                        <div style="font-size: 12px; color: #666; margin-top: 0.5rem;">
+                            Action: Fast-track verification | Owner: Admin | Due: 02-May-26
+                        </div>
+                    </li>
+                    <li><strong>🟡 MEDIUM:</strong> Cheque Clearing Delay (3 cases)
+                        <div style="font-size: 12px; color: #666; margin-top: 0.5rem;">
+                            Action: Follow up with bank | Owner: Finance | Due: 05-May-26
+                        </div>
+                    </li>
+                    <li><strong>🟢 LOW:</strong> Option Form Not Received (15 cases)
+                        <div style="font-size: 12px; color: #666; margin-top: 0.5rem;">
+                            Action: Send reminder notice | Owner: Field Team | Due: 05-May-26
+                        </div>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function switchTab(tabName) {
+            // Hide all tabs
+            const contents = document.querySelectorAll('.tab-content');
+            contents.forEach(c => c.classList.remove('active'));
+            
+            // Remove active from buttons
+            const buttons = document.querySelectorAll('.tab-btn');
+            buttons.forEach(b => b.classList.remove('active'));
+            
+            // Show selected tab and activate button
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        // Chart initialization
+        const overviewCtx = document.getElementById('overviewChart').getContext('2d');
+        new Chart(overviewCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Paid (52)', 'Pending (263)'],
+                datasets: [{
+                    data: [52, 263],
+                    backgroundColor: ['#667eea', '#e0e0e0'],
+                    borderColor: 'white',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom' } }
+            }
+        });
+
+        const weeklyCtx = document.getElementById('weeklyChart').getContext('2d');
+        new Chart(weeklyCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Week 5-8'],
+                datasets: [
+                    {
+                        label: 'Target',
+                        data: [20, 20, 20, 15, 80],
+                        backgroundColor: '#b4d7f1'
+                    },
+                    {
+                        label: 'Actual',
+                        data: [18, 15, 12, 7, 0],
+                        backgroundColor: '#667eea'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom' } }
+            }
+        });
+
+        function searchPayment() {
+            alert('Search functionality - integrate with live database');
+        }
+
+        function clearSearch() {
+            document.getElementById('searchHouse').value = '';
+        }
+    </script>
+</body>
+</html>
